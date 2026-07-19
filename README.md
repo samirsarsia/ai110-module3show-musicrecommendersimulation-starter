@@ -100,23 +100,27 @@ You can add more tests in `tests/test_recommender.py`.
 
 User profile: genre=pop, mood=happy, energy=0.8
 
+Terminal output from `python -m src.main`:
+
 ```
+Loaded songs: 18
+
 Top recommendations:
 
-Sunrise City - Score: 4.47
-Because: genre matches (pop); mood matches (happy); energy 0.82 is close to your target 0.80
+1. Sunrise City — Score: 4.47
+   Because: genre match (+2.0); mood match (+1.0); energy 0.82 close to target 0.80 (+1.47)
 
-Gym Hero - Score: 3.30
-Because: genre matches (pop); energy 0.93 is close to your target 0.80
+2. Gym Hero — Score: 3.30
+   Because: genre match (+2.0); energy 0.93 close to target 0.80 (+1.30)
 
-Rooftop Lights - Score: 2.44
-Because: mood matches (happy); energy 0.76 is close to your target 0.80
+3. Rooftop Lights — Score: 2.44
+   Because: mood match (+1.0); energy 0.76 close to target 0.80 (+1.44)
 
-Night Drive Loop - Score: 1.42
-Because: energy 0.75 is close to your target 0.80
+4. Night Drive Loop — Score: 1.42
+   Because: energy 0.75 close to target 0.80 (+1.42)
 
-Storm Runner - Score: 1.33
-Because: energy 0.91 is close to your target 0.80
+5. Riot Anthem — Score: 1.36
+   Because: energy 0.89 close to target 0.80 (+1.36)
 ```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
