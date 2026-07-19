@@ -6,6 +6,7 @@ GENRE_WEIGHT = 2.0
 MOOD_WEIGHT = 1.0
 ENERGY_WEIGHT = 1.5
 ACOUSTIC_WEIGHT = 0.5
+ARTIST_REPEAT_PENALTY = 1.0
 
 
 @dataclass
@@ -58,16 +59,39 @@ def _score_song_obj(user: UserProfile, song: Song) -> Tuple[float, List[str]]:
     return score, reasons
 
 
+def _select_diverse(scored_items: List[Tuple[float, object]], k: int, artist_of) -> List:
+    """Greedily picks the top k items by score, penalizing repeats from an already-picked artist."""
+    remaining = list(scored_items)
+    selected = []
+    artist_counts: Dict[str, int] = {}
+
+    for _ in range(min(k, len(remaining))):
+        best_index = None
+        best_adjusted = None
+        for i, (score, item) in enumerate(remaining):
+            artist = artist_of(item)
+            adjusted = score - ARTIST_REPEAT_PENALTY * artist_counts.get(artist, 0)
+            if best_adjusted is None or adjusted > best_adjusted:
+                best_adjusted = adjusted
+                best_index = i
+
+        score, item = remaining.pop(best_index)
+        artist_counts[artist_of(item)] = artist_counts.get(artist_of(item), 0) + 1
+        selected.append(item)
+
+    return selected
+
+
 class Recommender:
     """OOP implementation of the recommendation logic."""
     def __init__(self, songs: List[Song]):
         self.songs = songs
 
     def recommend(self, user: UserProfile, k: int = 5) -> List[Song]:
-        """Scores every song against the user profile and returns the top k Song objects."""
+        """Scores every song, applies a diversity penalty for repeat artists, and returns the top k Song objects."""
         scored = [(_score_song_obj(user, song)[0], song) for song in self.songs]
-        scored.sort(key=lambda pair: pair[0], reverse=True)
-        return [song for _, song in scored[:k]]
+        selected = _select_diverse(scored, k, artist_of=lambda song: song.artist)
+        return selected
 
     def explain_recommendation(self, user: UserProfile, song: Song) -> str:
         """Returns a human-readable, semicolon-joined list of reasons a song scored as it did."""
@@ -124,11 +148,14 @@ def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
 
 
 def recommend_songs(user_prefs: Dict, songs: List[Dict], k: int = 5) -> List[Tuple[Dict, float, str]]:
-    """Scores every song with score_song and returns the top k as (song, score, explanation)."""
+    """Scores every song, applies a diversity penalty for repeat artists, and returns the top k as (song, score, explanation)."""
+    explanations = {}
     scored = []
     for song in songs:
         score, reasons = score_song(user_prefs, song)
-        scored.append((song, score, "; ".join(reasons)))
+        explanations[song["id"]] = "; ".join(reasons)
+        scored.append((score, song))
 
-    scored.sort(key=lambda item: item[1], reverse=True)
-    return scored[:k]
+    selected = _select_diverse(scored, k, artist_of=lambda song: song["artist"])
+    original_scores = {song["id"]: score for score, song in scored}
+    return [(song, original_scores[song["id"]], explanations[song["id"]]) for song in selected]
