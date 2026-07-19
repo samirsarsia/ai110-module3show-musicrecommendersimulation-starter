@@ -127,6 +127,90 @@ Top recommendations:
 
 ---
 
+## Stress Test Profiles
+
+Six profiles run against the current 18-song catalog: three "normal" taste profiles, plus three adversarial/edge cases designed to try to break the scoring logic (a profile with a genre/mood combo that contradicts the requested energy, a profile with no genre/mood at all, and a profile with a genre that doesn't exist in the catalog).
+
+```
+=== High-Energy Pop: {'genre': 'pop', 'mood': 'happy', 'energy': 0.9} ===
+1. Sunrise City (pop/happy) — Score: 4.38
+   Because: genre match (+2.0); mood match (+1.0); energy 0.82 close to target 0.90 (+1.38)
+2. Gym Hero (pop/intense) — Score: 3.46
+   Because: genre match (+2.0); energy 0.93 close to target 0.90 (+1.46)
+3. Rooftop Lights (indie pop/happy) — Score: 2.29
+   Because: mood match (+1.0); energy 0.76 close to target 0.90 (+1.29)
+4. Storm Runner (rock/intense) — Score: 1.48
+   Because: energy 0.91 close to target 0.90 (+1.48)
+5. Riot Anthem (punk/aggressive) — Score: 1.48
+   Because: energy 0.89 close to target 0.90 (+1.48)
+
+=== Chill Lofi: {'genre': 'lofi', 'mood': 'chill', 'energy': 0.3} ===
+1. Library Rain (lofi/chill) — Score: 4.42
+   Because: genre match (+2.0); mood match (+1.0); energy 0.35 close to target 0.30 (+1.42)
+2. Midnight Coding (lofi/chill) — Score: 4.32
+   Because: genre match (+2.0); mood match (+1.0); energy 0.42 close to target 0.30 (+1.32)
+3. Focus Flow (lofi/focused) — Score: 3.35
+   Because: genre match (+2.0); energy 0.40 close to target 0.30 (+1.35)
+4. Spacewalk Thoughts (ambient/chill) — Score: 2.47
+   Because: mood match (+1.0); energy 0.28 close to target 0.30 (+1.47)
+5. Harvest Moon Road (folk/nostalgic) — Score: 1.50
+   Because: energy 0.30 close to target 0.30 (+1.50)
+
+=== Deep Intense Rock: {'genre': 'rock', 'mood': 'intense', 'energy': 0.95} ===
+1. Storm Runner (rock/intense) — Score: 4.44
+   Because: genre match (+2.0); mood match (+1.0); energy 0.91 close to target 0.95 (+1.44)
+2. Gym Hero (pop/intense) — Score: 2.47
+   Because: mood match (+1.0); energy 0.93 close to target 0.95 (+1.47)
+3. Pulse Overdrive (edm/euphoric) — Score: 1.50
+   Because: energy 0.95 close to target 0.95 (+1.50)
+4. Iron Verdict (metal/aggressive) — Score: 1.47
+   Because: energy 0.97 close to target 0.95 (+1.47)
+5. Riot Anthem (punk/aggressive) — Score: 1.41
+   Because: energy 0.89 close to target 0.95 (+1.41)
+
+=== ADVERSARIAL — Conflicting prefs (classical/sad genre+mood, but energy target 0.9): {'genre': 'classical', 'mood': 'sad', 'energy': 0.9} ===
+1. Nocturne in Blue (classical/melancholy) — Score: 2.45
+   Because: genre match (+2.0); energy 0.20 close to target 0.90 (+0.45)
+2. Storm Runner (rock/intense) — Score: 1.48
+   Because: energy 0.91 close to target 0.90 (+1.48)
+3. Riot Anthem (punk/aggressive) — Score: 1.48
+   Because: energy 0.89 close to target 0.90 (+1.48)
+4. Gym Hero (pop/intense) — Score: 1.46
+   Because: energy 0.93 close to target 0.90 (+1.46)
+5. Pulse Overdrive (edm/euphoric) — Score: 1.43
+   Because: energy 0.95 close to target 0.90 (+1.43)
+
+=== ADVERSARIAL — No genre/mood, just acoustic+low energy: {'energy': 0.1, 'likes_acoustic': True} ===
+1. Nocturne in Blue (classical/melancholy) — Score: 1.83
+   Because: energy 0.20 close to target 0.10 (+1.35); acousticness 0.95 (+0.47)
+2. Spacewalk Thoughts (ambient/chill) — Score: 1.69
+   Because: energy 0.28 close to target 0.10 (+1.23); acousticness 0.92 (+0.46)
+3. Harvest Moon Road (folk/nostalgic) — Score: 1.61
+   Because: energy 0.30 close to target 0.10 (+1.20); acousticness 0.81 (+0.41)
+4. Library Rain (lofi/chill) — Score: 1.55
+   Because: energy 0.35 close to target 0.10 (+1.12); acousticness 0.86 (+0.43)
+5. Coffee Shop Stories (jazz/relaxed) — Score: 1.54
+   Because: energy 0.37 close to target 0.10 (+1.09); acousticness 0.89 (+0.45)
+
+=== ADVERSARIAL — Nonexistent genre "reggae" (not in catalog): {'genre': 'reggae', 'mood': 'happy', 'energy': 0.6} ===
+1. Rooftop Lights (indie pop/happy) — Score: 2.26
+   Because: mood match (+1.0); energy 0.76 close to target 0.60 (+1.26)
+2. Sunrise City (pop/happy) — Score: 2.17
+   Because: mood match (+1.0); energy 0.82 close to target 0.60 (+1.17)
+3. Broken Streetlights (hip-hop/melancholy) — Score: 1.43
+   Because: energy 0.55 close to target 0.60 (+1.43)
+4. Dust and Diesel (country/nostalgic) — Score: 1.35
+   Because: energy 0.50 close to target 0.60 (+1.35)
+5. Velvet Whisper (r&b/romantic) — Score: 1.32
+   Because: energy 0.48 close to target 0.60 (+1.32)
+```
+
+**Key finding — a real bug, not just a quirk:** the "conflicting prefs" adversarial profile exposes a flaw in the scoring model. It asks for `genre=classical, mood=sad, energy=0.9`, and the system's #1 pick, "Nocturne in Blue," matches genre but has an actual energy of 0.20 — a 0.70 gap from the target, the worst energy fit of anything in the top 5. It still wins because a genre match alone (+2.0) outweighs a huge energy mismatch (+0.45). This means the scoring rule has no penalty for a profile that is internally contradictory (a "classical" fan who wants energy 0.9 is asking for something that mostly doesn't exist in this catalog), and no floor/ceiling on how badly a single feature can miss before a match in another feature should stop compensating for it.
+
+Also notable: the "nonexistent genre" profile (`reggae`, not in the catalog) doesn't crash or return nothing — `score_song` just silently skips the genre-match bonus for every song, so the system gracefully degrades to ranking by mood + energy alone. That's safe, but it also means a typo in a genre name (e.g., "pop " with a trailing space) fails exactly the same way as a genuinely absent genre, with no feedback to the user that their preference was never matched.
+
+---
+
 ## Experiments You Tried
 
 **Lowering the genre weight from 2.0 to 0.5** (user: `genre=pop, mood=happy, energy=0.8`): with the default weights, "Sunrise City" (pop, happy, energy 0.82) clearly wins with a score of 4.47, well ahead of "Gym Hero" (pop, but wrong mood) at 3.30. Dropping genre's weight to 0.5 shrinks the gap and even lets "Rooftop Lights" (right mood, wrong genre, score 2.44) pass "Gym Hero" (right genre, wrong mood, score 1.80). This confirmed the intuition that genre should dominate mood — with a low genre weight, a mood match started outweighing a genre match, which felt wrong for how people usually describe their taste ("I want something poppy" is a harder constraint than "I want something happy").
@@ -136,6 +220,21 @@ Top recommendations:
 - A user with no genre/mood preference who just wants acoustic, low-energy songs (`energy=0.4, likes_acoustic=True`) correctly surfaced "Coffee Shop Stories," "Focus Flow," and "Library Rain" — all high-acousticness, energy-close songs from different genres (jazz, lofi, lofi), showing the acoustic bonus and energy-closeness terms work independently of genre/mood when those preferences aren't specified.
 
 I did not add `tempo_bpm` or `valence` to the score — see Limitations below.
+
+**Weight-shift experiment (`GENRE_WEIGHT` 2.0→1.0, `ENERGY_WEIGHT` 1.5→3.0)**, re-run against the adversarial "conflicting prefs" profile above (`genre=classical, mood=sad, energy=0.9`):
+
+```
+BEFORE (GENRE_WEIGHT=2.0, ENERGY_WEIGHT=1.5):
+1. Nocturne in Blue — 2.45 — genre match (+2.0); energy 0.20 close to target 0.90 (+0.45)
+2. Storm Runner — 1.48 — energy 0.91 close to target 0.90 (+1.48)
+
+AFTER (GENRE_WEIGHT=1.0, ENERGY_WEIGHT=3.0):
+1. Storm Runner — 2.97 — energy 0.91 close to target 0.90 (+2.97)
+2. Riot Anthem — 2.97 — energy 0.89 close to target 0.90 (+2.97)
+3. Gym Hero — 2.91 — energy 0.93 close to target 0.90 (+2.91)
+```
+
+With the default weights, a genre match alone was enough to put an energy-mismatched song ("Nocturne in Blue," off by 0.70) in first place. After the shift, "Nocturne in Blue" drops out of the top 5 entirely, replaced by songs whose energy actually matches the target. For this specific profile the change made the recommendations *more* accurate, because the user's numeric preference (`energy: 0.9`) is a much stronger signal of intent than the fact that they happen to like classical music generally. This is a real accuracy improvement for contradictory profiles, but it's also just a different tradeoff, not a strictly better one — for a normal, non-conflicting profile (e.g., High-Energy Pop above), raising `ENERGY_WEIGHT` this much would make near-miss energy songs from the *wrong* genre outrank exact genre matches, which is not obviously an improvement.
 
 ---
 
