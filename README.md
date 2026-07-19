@@ -31,6 +31,34 @@ Real-world recommenders (Spotify, YouTube, etc.) mostly work by comparing an ite
 
 **Ranking rule (list of songs):** every song in the catalog is scored independently, then the list is sorted by score descending and truncated to the top `k`. The scoring rule answers "how good is this one song for this user," while the ranking rule answers the separate question of "given many scored songs, which ones do we actually show, and in what order" — a system needs both because scoring is a per-item calculation and ranking is a list-level decision.
 
+**Example user profile ("Marcus"):** `{"favorite_genre": "rock", "favorite_mood": "intense", "target_energy": 0.9, "likes_acoustic": False}`. Run against the catalog, this profile's top match is "Storm Runner" (rock, intense, energy 0.91 — score 4.48), and a `{"favorite_genre": "lofi", "favorite_mood": "chill", "target_energy": 0.35}` profile's top match is "Library Rain" (lofi, chill, energy 0.35 — score 4.50) with zero overlap in the top 3 between the two — confirming the profile fields are specific enough to separate "intense rock" from "chill lofi" rather than collapsing toward one generic answer.
+
+### Algorithm Recipe
+
+1. For each song in the catalog, compute a score:
+   - `+2.0` if `song.genre == user.favorite_genre`
+   - `+1.0` if `song.mood == user.favorite_mood`
+   - `+1.5 * (1 - abs(song.energy - user.target_energy))` — always applied, rewards closeness rather than "more energy = better"
+   - `+0.5 * song.acousticness` if `user.likes_acoustic` is true
+2. Sort all scored songs descending by score.
+3. Return the top `k` songs, each paired with a plain-language explanation built from which rules fired.
+
+### Data Flow
+
+```mermaid
+flowchart LR
+    A[User Prefs<br/>genre, mood, target_energy, likes_acoustic] --> B[Process: Loop over every song in songs.csv]
+    B --> C[Score each song<br/>genre +2.0 / mood +1.0 / energy closeness +1.5 / acoustic +0.5]
+    C --> D[Sort all scored songs descending]
+    D --> E[Output: Top K Recommendations<br/>with explanation]
+```
+
+### Expected Biases
+
+- **Genre-dominant weighting**: genre is worth 2x a mood match, so this system will tend to favor "right genre, wrong mood" songs over "right mood, wrong genre" songs — it may under-recommend a great mood match if it's in an unfavored genre.
+- **Exact-string matching**: `"pop"` and `"indie pop"` are treated as completely unrelated genres, so users whose stated preference doesn't exactly match the catalog's label get no credit even for a very close genre.
+- **Underrepresented catalog corners**: some genres/moods in the expanded catalog (e.g., classical/melancholy, r&b/romantic) have only one song, so any user whose taste centers there has very little to differentiate among — the top recommendation will often be the *only* option rather than the *best* one.
+
 ---
 
 ## Getting Started
